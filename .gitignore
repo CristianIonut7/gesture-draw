@@ -10,6 +10,7 @@ __pycache__/
 # Model files (mari, nu le vrei pe git)
 models/*.h5
 models/*.pkl
+models/*.task
 
 # Dataset (foarte mare)
 data/
@@ -24,3 +25,5 @@ Thumbs.db
 
 # Env variables
 .env
+# Quick Draw cache (very large)
+.quickdrawcache/

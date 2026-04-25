@@ -47,10 +47,9 @@ COLORS = [
 ]
 color_index = 0
 
-# Rezolutia de afisare (fereastra mare)
 DISPLAY_W, DISPLAY_H = 1280, 720
 
-canvas = None  # initializat la primul frame pe dimensiunea camerei
+canvas = None
 prev_x, prev_y = 0, 0
 fist_frames = 0
 open_frames = 0
@@ -94,8 +93,6 @@ def draw_color_palette(frame, current_index):
             cv2.circle(frame, (x_start, y), 13, (255, 255, 255), 2)
 
 cap = cv2.VideoCapture(1)
-# Camera rămâne la rezolutia ei nativa (ex: 640x480) - procesare rapida
-# Fereastra va fi scalata la DISPLAY_W x DISPLAY_H
 print("Camera pornita!")
 print("Index = desenezi | Ciupire = pen up | Palma = culoare | Pumn = clear")
 print("Q = quit")
@@ -106,16 +103,14 @@ while True:
         break
 
     frame = cv2.flip(frame, 1)
-    h, w, _ = frame.shape  # dimensiunea reala a camerei (ex: 480x640)
+    h, w, _ = frame.shape
 
-    # Initializeaza canvas la dimensiunea camerei (o singura data)
     if canvas is None:
         canvas = np.zeros((h, w, 3), dtype=np.uint8)
 
     current_color = COLORS[color_index][0]
     current_color_name = COLORS[color_index][1]
 
-    # MediaPipe ruleaza pe frame-ul mic = rapid
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
     result = detector.detect(mp_image)
@@ -188,7 +183,6 @@ while True:
         fist_frames = 0
         open_frames = 0
 
-    # Suprapune canvas pe frame (ambele la dimensiunea camerei)
     canvas_gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
     _, mask = cv2.threshold(canvas_gray, 10, 255, cv2.THRESH_BINARY)
     mask_inv = cv2.bitwise_not(mask)
@@ -196,10 +190,8 @@ while True:
     canvas_fg = cv2.bitwise_and(canvas, canvas, mask=mask)
     combined = cv2.add(frame_bg, canvas_fg)
 
-    # Scalare pentru afisare (doar la final, nu afecteaza procesarea)
     display = cv2.resize(combined, (DISPLAY_W, DISPLAY_H))
 
-    # UI pe frame-ul scalat
     draw_color_palette(display, color_index)
     cv2.putText(display, "Index=desen | Ciupire=pen up | Palma=culoare | Pumn=clear", (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, (180, 180, 180), 1)
