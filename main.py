@@ -1,7 +1,3 @@
-"""
-main.py
-GestureWar entry point. Manages the menu/mode loop with fade transitions.
-"""
 import sys
 import os
 
@@ -20,7 +16,6 @@ WINDOW_NAME = "GestureWar"
 
 
 def show_loading_screen(message="Loading..."):
-    """Display a loading screen in the same window."""
     bg = make_paper_background(DISPLAY_W, DISPLAY_H)
 
     title = "GestureWar"

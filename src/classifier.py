@@ -1,8 +1,4 @@
-"""
-classifier.py
-Wrapper pentru modelul Quick Draw antrenat.
-Primeste un canvas (imagine numpy) si returneaza ce crede ca e desenat.
-"""
+
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -26,14 +22,7 @@ class DrawingClassifier:
         print(f"Model incarcat. {len(self.labels)} categorii disponibile.")
 
     def preprocess(self, canvas):
-        """
-        Pregateste canvas-ul pentru model:
-        1. Convert grayscale daca e color
-        2. Crop la bounding box-ul desenului (centrat)
-        3. Resize la IMG_SIZE x IMG_SIZE
-        4. Normalize 0-1
-        """
-        # Grayscale
+
         if len(canvas.shape) == 3:
             gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
         else:
@@ -42,7 +31,6 @@ class DrawingClassifier:
         if cv2.countNonZero(gray) < 50:
             return None
 
-        # Bounding box al desenului
         coords = cv2.findNonZero(gray)
         x, y, w, h = cv2.boundingRect(coords)
 
@@ -67,10 +55,6 @@ class DrawingClassifier:
         return normalized.reshape(1, IMG_SIZE, IMG_SIZE, 1)
 
     def predict(self, canvas, top_k=3):
-        """
-        Returneaza top_k predictii ca lista de tuple (label, confidence).
-        Daca canvas e gol, returneaza None.
-        """
         processed = self.preprocess(canvas)
         if processed is None:
             return None
@@ -81,7 +65,6 @@ class DrawingClassifier:
         return [(self.labels[i], float(predictions[i])) for i in top_indices]
 
     def predict_top1(self, canvas):
-        """Returneaza doar (label, confidence) sau None."""
         result = self.predict(canvas, top_k=1)
         if result is None:
             return None

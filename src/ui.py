@@ -1,8 +1,3 @@
-"""
-ui.py
-Main menu in vintage / paper minimalist style.
-Mouse selection only.
-"""
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -44,7 +39,6 @@ def make_paper_background(w, h):
 
 
 def fade_out(window_name, current_frame, frames=12):
-    """Fade the given frame to black. Use when leaving a screen."""
     for i in range(frames):
         alpha = 1 - (i / frames)
         faded = (current_frame * alpha).astype(np.uint8)
@@ -53,7 +47,6 @@ def fade_out(window_name, current_frame, frames=12):
 
 
 def fade_in(window_name, target_frame, frames=12):
-    """Fade in from black to the target frame. Use when entering a screen."""
     for i in range(frames + 1):
         alpha = i / frames
         faded = (target_frame * alpha).astype(np.uint8)
@@ -122,7 +115,6 @@ def _mouse_callback(event, x, y, flags, param):
 
 _cached_paper_bg = None 
 def render_menu_frame(hover_state):
-    """Renders one menu frame - reusable so we can re-render after fade-in."""
     global _cached_paper_bg
     if _cached_paper_bg is None:
         _cached_paper_bg = make_paper_background(DISPLAY_W, DISPLAY_H)
@@ -157,11 +149,6 @@ def render_menu_frame(hover_state):
 
 
 def run_menu(window_name="GestureWar", fade_in_first=False):
-    """
-    Runs the menu loop.
-    Returns (selected_option_id, last_displayed_frame).
-    The frame is useful for fade-out transitions.
-    """
     cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
     cv2.setMouseCallback(window_name, _mouse_callback)
 

@@ -1,7 +1,3 @@
-"""
-canvas.py
-Drawing canvas using hand gestures via MediaPipe.
-"""
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -78,9 +74,6 @@ def get_finger_state(landmarks, w, h):
 
 
 class GestureCanvas:
-    """
-    Manages camera + hand tracking + drawing canvas.
-    """
 
     def __init__(self, num_hands=1, allow_color_change=True, allow_clear=True):
         ensure_hand_model()
@@ -107,7 +100,6 @@ class GestureCanvas:
         self.open_hand_triggered = False  # set true on the frame open hand confirms
 
     def set_modes(self, allow_color_change=True, allow_clear=True):
-        """Toggle features at runtime (used when switching game modes)."""
         self.allow_color_change = allow_color_change
         self.allow_clear = allow_clear
 
