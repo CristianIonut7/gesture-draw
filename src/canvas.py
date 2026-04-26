@@ -1,7 +1,6 @@
 """
 canvas.py
 Drawing canvas using hand gestures via MediaPipe.
-Reusable class - used by all three game modes.
 """
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -81,7 +80,6 @@ def get_finger_state(landmarks, w, h):
 class GestureCanvas:
     """
     Manages camera + hand tracking + drawing canvas.
-    Used by all game modes for consistent drawing behavior.
     """
 
     def __init__(self, num_hands=1, allow_color_change=True, allow_clear=True):
@@ -102,9 +100,16 @@ class GestureCanvas:
         self.fist_frames = 0
         self.open_frames = 0
         self.color_index = 0
+        self.allow_color_change = True
+        self.allow_clear = True
+        self.set_modes(allow_color_change, allow_clear)
+        self.just_cleared = False
+        self.open_hand_triggered = False  # set true on the frame open hand confirms
+
+    def set_modes(self, allow_color_change=True, allow_clear=True):
+        """Toggle features at runtime (used when switching game modes)."""
         self.allow_color_change = allow_color_change
         self.allow_clear = allow_clear
-        self.just_cleared = False
 
     def reset_canvas(self):
         if self.canvas is not None:
@@ -120,10 +125,6 @@ class GestureCanvas:
         return COLORS[self.color_index][1]
 
     def update(self):
-        """
-        Reads one frame, processes gestures, updates canvas.
-        Returns dict with state info, or None if camera failed.
-        """
         ret, frame = self.cap.read()
         if not ret:
             return None
@@ -141,6 +142,9 @@ class GestureCanvas:
         gesture_label = ""
         current_color = self.get_current_color()
         self.just_cleared = False
+        self.open_hand_triggered = False
+
+        open_hand_active = False
 
         if result.hand_landmarks:
             landmarks = result.hand_landmarks[0]
@@ -164,18 +168,28 @@ class GestureCanvas:
                     self.fist_frames = 0
                     self.just_cleared = True
 
-            elif self.allow_color_change and is_open_hand(landmarks):
+            elif is_open_hand(landmarks):
+                # Open hand detected - either change color OR signal to game mode
+                open_hand_active = True
                 self.open_frames += 1
                 self.fist_frames = 0
                 self.prev_x, self.prev_y = 0, 0
-                gesture_label = "OPEN - color"
 
                 progress = min(self.open_frames / OPEN_THRESHOLD, 1.0)
-                self._draw_progress_bar(frame, w, h, progress, current_color, "COLOR...")
 
-                if self.open_frames >= OPEN_THRESHOLD:
-                    self.color_index = (self.color_index + 1) % len(COLORS)
-                    self.open_frames = 0
+                if self.allow_color_change:
+                    gesture_label = "OPEN - color"
+                    self._draw_progress_bar(frame, w, h, progress, current_color, "COLOR...")
+                    if self.open_frames >= OPEN_THRESHOLD:
+                        self.color_index = (self.color_index + 1) % len(COLORS)
+                        self.open_frames = 0
+                        self.open_hand_triggered = True
+                else:
+                    # Mode handles the visual feedback for AI call
+                    gesture_label = "OPEN HAND"
+                    if self.open_frames >= OPEN_THRESHOLD:
+                        self.open_hand_triggered = True
+                        self.open_frames = 0
 
             else:
                 self.fist_frames = 0
@@ -215,6 +229,9 @@ class GestureCanvas:
             "raw_canvas": self.canvas.copy(),
             "frame_w": w,
             "frame_h": h,
+            "open_hand_active": open_hand_active,
+            "open_hand_progress": min(self.open_frames / OPEN_THRESHOLD, 1.0) if open_hand_active else 0.0,
+            "open_hand_triggered": self.open_hand_triggered,
         }
 
     def _draw_progress_bar(self, frame, w, h, progress, color, label):
