@@ -17,16 +17,13 @@ WINDOW_NAME = "GestureWar"
 
 def show_loading_screen(message="Loading..."):
     bg = make_paper_background(DISPLAY_W, DISPLAY_H)
-
     title = "GestureWar"
     title_size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 2.2, 2)[0]
     cv2.putText(bg, title, ((DISPLAY_W - title_size[0]) // 2, DISPLAY_H // 2 - 40),
                 cv2.FONT_HERSHEY_DUPLEX, 2.2, COLOR_INK, 2, cv2.LINE_AA)
-
     msg_size = cv2.getTextSize(message, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 1)[0]
     cv2.putText(bg, message, ((DISPLAY_W - msg_size[0]) // 2, DISPLAY_H // 2 + 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR_INK_LIGHT, 1, cv2.LINE_AA)
-
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
     cv2.imshow(WINDOW_NAME, bg)
     cv2.waitKey(1)
@@ -35,7 +32,7 @@ def show_loading_screen(message="Loading..."):
 
 def main():
     shared_canvas = None
-    fade_in_menu_next = False 
+    fade_in_menu_next = False
 
     def get_canvas():
         nonlocal shared_canvas
@@ -52,20 +49,16 @@ def main():
     try:
         while True:
             choice, last_menu_frame = run_menu(window_name=WINDOW_NAME, fade_in_first=fade_in_menu_next)
-            fade_in_menu_next = False 
+            fade_in_menu_next = False
 
             if choice in ("free", "solo", "duel"):
                 fade_out(WINDOW_NAME, last_menu_frame)
 
-                canvas = get_canvas()
-
-                state = canvas.update()
-                first_frame = state["display"]
-                fade_in(WINDOW_NAME, first_frame)
-
                 if choice == "free":
+                    canvas = get_canvas()
                     last_mode_frame = run_free_draw(canvas, window_name=WINDOW_NAME)
                 elif choice == "solo":
+                    canvas = get_canvas()
                     last_mode_frame = run_solo_challenge(canvas, window_name=WINDOW_NAME)
                 elif choice == "duel":
                     last_mode_frame = run_duel(canvas, window_name=WINDOW_NAME)

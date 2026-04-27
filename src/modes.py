@@ -8,6 +8,7 @@ from ui import make_paper_background, COLOR_INK, COLOR_INK_LIGHT, DISPLAY_W, DIS
 
 
 def _show_simple_loading(window_name, message):
+    """Static paper-bg loading screen shown immediately."""
     bg = make_paper_background(DISPLAY_W, DISPLAY_H)
     title = "GestureWar"
     title_size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 2.2, 2)[0]
@@ -17,14 +18,88 @@ def _show_simple_loading(window_name, message):
     cv2.putText(bg, message, ((DISPLAY_W - msg_size[0]) // 2, DISPLAY_H // 2 + 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR_INK_LIGHT, 1, cv2.LINE_AA)
     cv2.imshow(window_name, bg)
-    cv2.waitKey(1)
+    for _ in range(3):
+        cv2.waitKey(1)
     return bg
+
+
+def _draw_info_button(display, hovered=False):
+    h, w, _ = display.shape
+    btn_size = 40
+    x = w - btn_size - 15
+    y = h - btn_size - 15
+    color = (255, 255, 255) if hovered else (200, 200, 200)
+    bg_color = (40, 40, 40) if not hovered else (70, 70, 90)
+    cv2.circle(display, (x + btn_size // 2, y + btn_size // 2), btn_size // 2, bg_color, -1)
+    cv2.circle(display, (x + btn_size // 2, y + btn_size // 2), btn_size // 2, color, 2)
+    cv2.putText(display, "i", (x + btn_size // 2 - 5, y + btn_size // 2 + 8),
+                cv2.FONT_HERSHEY_DUPLEX, 0.9, color, 2, cv2.LINE_AA)
+    return (x, y, btn_size, btn_size)
+
+
+def _point_in_rect(px, py, rect):
+    x, y, w, h = rect
+    return x <= px <= x + w and y <= py <= y + h
+
+_mode_mouse = {"x": -1, "y": -1, "clicked": False}
+
+
+def _mode_mouse_cb(event, x, y, flags, param):
+    _mode_mouse["x"] = x
+    _mode_mouse["y"] = y
+    if event == cv2.EVENT_LBUTTONDOWN:
+        _mode_mouse["clicked"] = True
+
+
+def _show_free_draw_help(canvas, window_name):
+    """Help overlay - dismissed on any key or click."""
+    _mode_mouse["clicked"] = False
+    while True:
+        state = canvas.update()
+        if state is None:
+            return None
+        display = state["display"]
+        h, w, _ = display.shape
+
+        overlay = display.copy()
+        cv2.rectangle(overlay, (0, 0), (w, h), (0, 0, 0), -1)
+        cv2.addWeighted(overlay, 0.75, display, 0.25, 0, display)
+
+        title = "Free Draw - Controls"
+        title_size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 1.0, 2)[0]
+        cv2.putText(display, title, ((w - title_size[0]) // 2, 130),
+                    cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+
+        lines = [
+            "Index finger raised  ->  draw",
+            "Pinch (thumb to index)  ->  pen up (stop drawing)",
+            "Open hand (hold ~0.5s)  ->  change color",
+            "Fist (hold ~0.5s)  ->  clear canvas",
+            "",
+            "ESC  ->  back to menu",
+        ]
+        for i, line in enumerate(lines):
+            cv2.putText(display, line, (w // 2 - 280, 220 + i * 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.75, (220, 220, 220), 1, cv2.LINE_AA)
+
+        cv2.putText(display, "Click anywhere or press any key to close",
+                    (w // 2 - 230, h - 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 220, 180), 1, cv2.LINE_AA)
+
+        cv2.imshow(window_name, display)
+        key = cv2.waitKey(1) & 0xFF
+        if key != 255 or _mode_mouse["clicked"]:
+            _mode_mouse["clicked"] = False
+            return display
 
 
 def run_free_draw(canvas, window_name="GestureWar"):
     canvas.set_modes(allow_color_change=True, allow_clear=True)
     canvas.reset_canvas()
+    cv2.setMouseCallback(window_name, _mode_mouse_cb)
+
     last_display = None
+    _mode_mouse["clicked"] = False
 
     while True:
         state = canvas.update()
@@ -46,8 +121,17 @@ def run_free_draw(canvas, window_name="GestureWar"):
         cv2.putText(display, "ESC = back to menu",
                     (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1, cv2.LINE_AA)
 
+        info_rect = _draw_info_button(display,
+                                       hovered=_point_in_rect(_mode_mouse["x"], _mode_mouse["y"], (display.shape[1] - 55, display.shape[0] - 55, 40, 40)))
+
         cv2.imshow(window_name, display)
         last_display = display
+
+        if _mode_mouse["clicked"] and _point_in_rect(_mode_mouse["x"], _mode_mouse["y"], info_rect):
+            _mode_mouse["clicked"] = False
+            _show_free_draw_help(canvas, window_name)
+            continue
+        _mode_mouse["clicked"] = False
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q') or key == 27:
@@ -556,14 +640,16 @@ def _duel_show_final(duel_canvas, window_name, game):
 
 
 def run_duel(shared_canvas, window_name="GestureWar"):
-    
     _show_simple_loading(window_name, "preparing 1v1 mode...")
     shared_canvas.cap.release()
 
     from duel_canvas import DuelCanvas
     duel_canvas = DuelCanvas()
+
     for _ in range(5):
-        duel_canvas.update(drawing_enabled=False, allow_clear=False)
+        ret, _ = duel_canvas.cap.read()
+        if not ret:
+            break
 
     classifier = DrawingClassifier()
     last_display = None
@@ -571,10 +657,10 @@ def run_duel(shared_canvas, window_name="GestureWar"):
     try:
         tutorial_result = _duel_show_tutorial(duel_canvas, window_name)
         if tutorial_result is None:
-            return None
+            return _show_simple_loading(window_name, "returning to menu...")
         last_display, action = tutorial_result
         if action == "back":
-            return last_display
+            return _show_simple_loading(window_name, "returning to menu...")
 
         game = DuelGame(num_rounds=5)
 
@@ -596,7 +682,7 @@ def run_duel(shared_canvas, window_name="GestureWar"):
             while round_winner is None:
                 state = duel_canvas.update(drawing_enabled=True, allow_clear=True)
                 if state is None:
-                    return last_display
+                    return _show_simple_loading(window_name, "returning to menu...")
 
                 display = state["display"]
                 h, w, _ = display.shape
@@ -670,14 +756,13 @@ def run_duel(shared_canvas, window_name="GestureWar"):
                     round_winner = "none"
                     break
                 elif key == ord('q') or key == 27:
-                    return last_display
+                    return _show_simple_loading(window_name, "returning to menu...")
 
         last_display = _duel_show_final(duel_canvas, window_name, game)
-        return last_display
+        return _show_simple_loading(window_name, "returning to menu...")
 
     finally:
-        _show_simple_loading(window_name, "returning to menu...")
         duel_canvas.close()
         shared_canvas.cap = cv2.VideoCapture(0)
         for _ in range(3):
-            shared_canvas.update()
+            shared_canvas.cap.read()
