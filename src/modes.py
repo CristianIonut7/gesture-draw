@@ -1,3 +1,6 @@
+"""This module contains the main game mode implementations: Solo Challenge and 1v1 Battle and the Free Draw mode."""
+
+
 import time
 import cv2
 import numpy as np
@@ -7,7 +10,7 @@ from game import SoloGame, DuelGame, check_word_match
 from classifier import DrawingClassifier
 from ui import make_paper_background, COLOR_INK, COLOR_INK_LIGHT, DISPLAY_W, DISPLAY_H
 
-
+# helper function to display a loading screen with a message
 def _show_simple_loading(window_name, message):
     bg = make_paper_background(DISPLAY_W, DISPLAY_H)
     title = "GestureWar"
@@ -22,7 +25,7 @@ def _show_simple_loading(window_name, message):
         cv2.waitKey(1)
     return bg
 
-
+# draws a small info button on the display and returns its position for click detection
 def _draw_info_button(display, hovered=False):
     h, w, _ = display.shape
     btn_size = 40
@@ -36,22 +39,22 @@ def _draw_info_button(display, hovered=False):
                 cv2.FONT_HERSHEY_DUPLEX, 0.9, color, 2, cv2.LINE_AA)
     return (x, y, btn_size, btn_size)
 
-
+# helper function to check if a point is inside a rectangle
 def _point_in_rect(px, py, rect):
     x, y, w, h = rect
     return x <= px <= x + w and y <= py <= y + h
 
-
+# global dictionary to track mouse state
 _mode_mouse = {"x": -1, "y": -1, "clicked": False}
 
-
+# update the global mouse state when the user clicks
 def _mode_mouse_cb(event, x, y, flags, param):
     _mode_mouse["x"] = x
     _mode_mouse["y"] = y
     if event == cv2.EVENT_LBUTTONDOWN:
         _mode_mouse["clicked"] = True
 
-
+# Free Draw tutorial
 def _show_free_draw_help(canvas, window_name):
     _mode_mouse["clicked"] = False
     while True:
@@ -92,7 +95,7 @@ def _show_free_draw_help(canvas, window_name):
             _mode_mouse["clicked"] = False
             return display
 
-
+# Free Draw mode logic
 def run_free_draw(canvas, window_name="GestureWar"):
     canvas.set_modes(allow_color_change=True, allow_clear=True)
     canvas.reset_canvas()
@@ -140,7 +143,7 @@ def run_free_draw(canvas, window_name="GestureWar"):
 
     return last_display
 
-
+# Solo Challenge tutorial
 def _show_tutorial(canvas, window_name):
     while True:
         state = canvas.update()
@@ -181,7 +184,7 @@ def _show_tutorial(canvas, window_name):
         elif key == ord('q') or key == 27:
             return display, "back"
 
-
+# Round introduction screen
 def _show_round_intro(canvas, window_name, round_num, total_rounds, word, total_score, duration_sec=2.0):
     start = time.time()
     last_display = None
@@ -219,7 +222,7 @@ def _show_round_intro(canvas, window_name, round_num, total_rounds, word, total_
 
     return last_display
 
-
+# Solo Challenge classification with banned labels
 def _classify_with_bans(classifier, raw_canvas, banned_labels):
     preds = classifier.predict(raw_canvas, top_k=10)
     if preds is None:
@@ -229,7 +232,7 @@ def _classify_with_bans(classifier, raw_canvas, banned_labels):
             return (label, conf)
     return None
 
-
+# Solo Challenge round result screen
 def _show_round_result(canvas, window_name, success, word, score_change, total_score, duration_sec=2.5):
     start = time.time()
     last_display = None
@@ -270,7 +273,7 @@ def _show_round_result(canvas, window_name, success, word, score_change, total_s
 
     return last_display
 
-
+# Solo Challenge final score screen
 def _show_solo_final_score(canvas, window_name, scores, total):
     last_display = None
     while True:
@@ -309,18 +312,18 @@ def _show_solo_final_score(canvas, window_name, scores, total):
         if key == ord(' ') or key == ord('q') or key == 27:
             return last_display
 
-
+# Solo Challenge main loop and logic
 def run_solo_challenge(canvas, window_name="GestureWar"):
     canvas.set_modes(allow_color_change=False, allow_clear=True)
     canvas.reset_canvas()
 
-    classifier = DrawingClassifier()
+    classifier = DrawingClassifier() #load the classifier once at the start of the mode
 
     tutorial_result = _show_tutorial(canvas, window_name)
     if tutorial_result is None:
         return None
     last_display, action = tutorial_result
-    if action == "back":
+    if action == "back": # user chose to go back from tutorial
         return last_display
 
     game = SoloGame(num_rounds=5)
@@ -341,14 +344,14 @@ def run_solo_challenge(canvas, window_name="GestureWar"):
 
         round_done = False
         while not round_done:
-            state = canvas.update()
-            if state is None:
+            state = canvas.update() 
+            if state is None: # user closed the window during the round
                 return last_display
 
-            display = state["display"]
+            display = state["display"] # get the current display to draw UI elements on top of it
             h, w, _ = display.shape
             elapsed = time.time() - round_start
-            cooldown_remaining = max(0, cooldown_until - time.time())
+            cooldown_remaining = max(0, cooldown_until - time.time()) # calculate remaining cooldown time for AI calls
 
             cv2.rectangle(display, (0, 0), (w, 70), (20, 20, 20), -1)
             cv2.putText(display, f"Draw: {word.upper()}", (20, 45),
@@ -366,7 +369,7 @@ def run_solo_challenge(canvas, window_name="GestureWar"):
             if cooldown_remaining > 0:
                 cv2.putText(display, f"AI cooldown: {cooldown_remaining:.1f}s",
                             (20, 105), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (100, 100, 255), 2, cv2.LINE_AA)
-            elif state["open_hand_active"]:
+            elif state["open_hand_active"]: # if the player is currently holding the open hand gesture, show a progress bar for calling the AI
                 progress = state["open_hand_progress"]
                 bar_w = 300
                 bar_x = w // 2 - bar_w // 2
@@ -376,15 +379,16 @@ def run_solo_challenge(canvas, window_name="GestureWar"):
                 cv2.putText(display, "Calling AI...", (w // 2 - 60, 130),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (100, 255, 200), 1, cv2.LINE_AA)
 
-            if last_wrong_guess_msg and time.time() - last_wrong_guess_time < 2.5:
+            if last_wrong_guess_msg and time.time() - last_wrong_guess_time < 2.5: # show the last wrong guess message for a few seconds after it happens
                 cv2.putText(display, last_wrong_guess_msg, (20, h - 100),
                             cv2.FONT_HERSHEY_DUPLEX, 0.8, (100, 100, 255), 2, cv2.LINE_AA)
 
-            if game.wrong_guesses:
+            if game.wrong_guesses: # if there are any wrong guesses this round, show them as banned words for the AI
                 banned_text = "Banned: " + ", ".join(game.wrong_guesses)
                 cv2.putText(display, banned_text, (20, h - 70),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (150, 150, 200), 1, cv2.LINE_AA)
 
+            # show controls hint at the bottom of the screen
             cv2.putText(display, "Open hand = call AI  |  Fist = clear  |  S = skip  |  ESC = quit",
                         (20, h - 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1, cv2.LINE_AA)
@@ -392,36 +396,36 @@ def run_solo_challenge(canvas, window_name="GestureWar"):
             cv2.imshow(window_name, display)
             last_display = display
 
-            if state["open_hand_triggered"] and cooldown_remaining <= 0:
+            if state["open_hand_triggered"] and cooldown_remaining <= 0: # if the player just triggered the open hand gesture and the AI is not on cooldown, make a prediction
                 pred = _classify_with_bans(classifier, state["raw_canvas"], game.wrong_guesses)
-                if pred is None:
+                if pred is None: # if the classifier couldn't make a prediction
                     last_wrong_guess_msg = "Canvas is empty - draw something!"
                     last_wrong_guess_time = time.time()
-                else:
+                else: # check if the predicted label matches the target word
                     label, conf = pred
-                    if label == word:
+                    if label == word: # correct guess
                         score = game.register_correct_guess(elapsed)
                         last_display = _show_round_result(canvas, window_name, True, word, score,
                                                           game.total_score())
                         round_done = True
-                    else:
+                    else: # wrong guess
                         penalty = game.register_wrong_guess(label)
                         last_wrong_guess_msg = f"AI guessed {label.upper()} (-{penalty} pts)"
                         last_wrong_guess_time = time.time()
                         cooldown_until = time.time() + 7.0
 
             key = cv2.waitKey(1) & 0xFF
-            if key == ord('s'):
+            if key == ord('s'): # allow the player to skip the current round by pressing 's'
                 game.skip_round()
                 last_display = _show_round_result(canvas, window_name, False, word, 0,
                                                   game.total_score())
                 round_done = True
-            elif key == ord('q') or key == 27:
+            elif key == ord('q') or key == 27: # allow the player to quit the mode early by pressing 'q' or ESC
                 return last_display
-
+    # After all rounds are finished, show the final score screen
     return _show_solo_final_score(canvas, window_name, game.scores, game.total_score())
 
-
+# 1v1 Battle tutorial
 def _duel_show_tutorial(duel_canvas, window_name):
     while True:
         state = duel_canvas.update(drawing_enabled=False, allow_clear=False)
@@ -462,7 +466,7 @@ def _duel_show_tutorial(duel_canvas, window_name):
         elif key == ord('q') or key == 27:
             return display, "back"
 
-
+# Round introduction screen for 1v1 Battle mode
 def _duel_show_round_intro(duel_canvas, window_name, round_num, total_rounds, word,
                             wins_p1, wins_p2):
     last_display = None
@@ -535,7 +539,7 @@ def _duel_show_round_intro(duel_canvas, window_name, round_num, total_rounds, wo
 
     return last_display
 
-
+# Round result screen for 1v1 Battle mode
 def _duel_show_round_result(duel_canvas, window_name, winner, word, wins_p1, wins_p2,
                              duration_sec=2.5):
     start = time.time()
@@ -582,7 +586,7 @@ def _duel_show_round_result(duel_canvas, window_name, winner, word, wins_p1, win
 
     return last_display
 
-
+# Final score screen for 1v1 Battle mode
 def _duel_show_final(duel_canvas, window_name, game):
     last_display = None
     overall = game.overall_winner()
@@ -639,7 +643,7 @@ def _duel_show_final(duel_canvas, window_name, game):
         if key == ord(' ') or key == ord('q') or key == 27:
             return last_display
 
-
+# Main loop and logic for 1v1 Battle mode
 def run_duel(shared_canvas, window_name="GestureWar"):
     _show_simple_loading(window_name, "preparing 1v1 mode...")
     shared_canvas.cap.release()
@@ -648,34 +652,35 @@ def run_duel(shared_canvas, window_name="GestureWar"):
     duel_canvas = DuelCanvas()
 
     for _ in range(5):
-        ret, _ = duel_canvas.cap.read()
+        ret, _ = duel_canvas.cap.read() # read a few frames to warm up the camera and ensure it's working
         if not ret:
             break
 
-    classifier = DrawingClassifier()
+    classifier = DrawingClassifier() # load the classifier once at the start of the mode
 
-    dummy = np.zeros((480, 320, 3), dtype=np.uint8)
+    dummy = np.zeros((480, 320, 3), dtype=np.uint8) # make a dummy input to warm up the classifier and ensure it's loaded properly before the game starts
     classifier.predict(dummy, top_k=1)
 
     last_display = None
-
     try:
-        tutorial_result = _duel_show_tutorial(duel_canvas, window_name)
+        tutorial_result = _duel_show_tutorial(duel_canvas, window_name) # show the tutorial screen
         if tutorial_result is None:
             return _show_simple_loading(window_name, "returning to menu...")
         last_display, action = tutorial_result
         if action == "back":
             return _show_simple_loading(window_name, "returning to menu...")
 
-        game = DuelGame(num_rounds=5)
+        game = DuelGame(num_rounds=5) # create the game state object
 
+        # We will run the AI inference in a separate thread to avoid blocking the main loop, and use this shared state to communicate results back to the main thread
         ai_state = {
-            "result_p1": None,
+            "result_p1": None, 
             "result_p2": None,
-            "in_flight": False,
-            "lock": threading.Lock(),
+            "in_flight": False, # whether there is currently an AI inference running
+            "lock": threading.Lock(),  # a lock to synchronize access to this state between threads
         }
 
+        # This function will be run in a separate thread to call the classifier and store results in ai_state when it finishes
         def _run_ai_inference(canvas_p1, canvas_p2):
             p1 = classifier.predict(canvas_p1, top_k=5)
             p2 = classifier.predict(canvas_p2, top_k=5)
@@ -700,7 +705,7 @@ def run_duel(shared_canvas, window_name="GestureWar"):
             REQUIRED_STREAK = 2
 
             while round_winner is None:
-                state = duel_canvas.update(drawing_enabled=True, allow_clear=True)
+                state = duel_canvas.update(drawing_enabled=True, allow_clear=True) # get the latest state from the canvas
                 if state is None:
                     return _show_simple_loading(window_name, "returning to menu...")
 
@@ -735,48 +740,57 @@ def run_duel(shared_canvas, window_name="GestureWar"):
                 cv2.imshow(window_name, display)
                 last_display = display
 
+                # Check if it's time to call the AI again
                 if time.time() - last_ai_check >= ai_check_interval and not ai_state["in_flight"]:
                     last_ai_check = time.time()
                     ai_state["in_flight"] = True
-                    threading.Thread(
+                    threading.Thread( # run the AI inference in a separate thread
                         target=_run_ai_inference,
                         args=(state["raw_canvas_p1"], state["raw_canvas_p2"]),
-                        daemon=True,
+                        daemon=True, # a daemon thread won't block the program if something goes wrong
                     ).start()
 
-                with ai_state["lock"]:
+                with ai_state["lock"]: # check if the AI has produced new results
                     if ai_state["result_p1"] is not None:
                         preds_p1 = ai_state["result_p1"]
                         preds_p2 = ai_state["result_p2"]
                         ai_state["result_p1"] = None
                         ai_state["result_p2"] = None
 
+                        # Check if the target word is in the predictions for each player
                         if preds_p1 and check_word_match(preds_p1, word):
-                            p1_match_streak += 1
+                            p1_match_streak += 1 # increase their match streak
                         else:
-                            p1_match_streak = 0
+                            p1_match_streak = 0 # reset their match streak
 
                         if preds_p2 and check_word_match(preds_p2, word):
-                            p2_match_streak += 1
+                            p2_match_streak += 1 # increase their match streak
                         else:
-                            p2_match_streak = 0
+                            p2_match_streak = 0 # reset their match streak
 
+                        # if both players have reached the required streak at the same time
                         if p1_match_streak >= REQUIRED_STREAK and p2_match_streak >= REQUIRED_STREAK:
+                            # get the confidence for the target word
                             c1 = next((c for l, c in preds_p1 if l == word), 0)
                             c2 = next((c for l, c in preds_p2 if l == word), 0)
+                            # the player with the higher confidence wins the round
                             round_winner = "p1" if c1 >= c2 else "p2"
+                        # player 1 reaches the required streak first
                         elif p1_match_streak >= REQUIRED_STREAK:
                             round_winner = "p1"
+                        # player 2 reaches the required streak first
                         elif p2_match_streak >= REQUIRED_STREAK:
                             round_winner = "p2"
 
+                        # if there is a round winner
                         if round_winner:
-                            game.register_winner(round_winner)
+                            game.register_winner(round_winner) # register the winner
                             last_display = _duel_show_round_result(
                                 duel_canvas, window_name, round_winner, word,
                                 game.wins_p1, game.wins_p2)
                             break
-
+                        
+                # Check for user input to skip the round or quit
                 key = cv2.waitKey(5) & 0xFF
                 if key == ord('s'):
                     game.register_skip()
@@ -787,10 +801,12 @@ def run_duel(shared_canvas, window_name="GestureWar"):
                     break
                 elif key == ord('q') or key == 27:
                     return _show_simple_loading(window_name, "returning to menu...")
-
+        
+        # After all rounds, show the final score screen
         last_display = _duel_show_final(duel_canvas, window_name, game)
         return _show_simple_loading(window_name, "returning to menu...")
 
+    # If we exit the mode early
     finally:
         duel_canvas.close()
         shared_canvas.cap = cv2.VideoCapture(0)
