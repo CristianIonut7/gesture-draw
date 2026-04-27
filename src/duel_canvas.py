@@ -15,8 +15,8 @@ from canvas import (
 )
 
 
-PEN_COLOR_P1 = (255, 200, 100)   # blue-cyan
-PEN_COLOR_P2 = (100, 180, 255)   # orange
+PEN_COLOR_P1 = (255, 200, 100)
+PEN_COLOR_P2 = (100, 180, 255)
 FIST_THRESHOLD = 15
 
 
@@ -40,6 +40,8 @@ class DuelCanvas:
         self.prev_p2 = (0, 0)
         self.fist_frames_p1 = 0
         self.fist_frames_p2 = 0
+        self.frame_counter = 0
+        self.last_mp_result = None
 
     def reset_canvases(self):
         if self.canvas_p1 is not None:
@@ -63,9 +65,14 @@ class DuelCanvas:
             self.canvas_p1 = np.zeros((h, half_w, 3), dtype=np.uint8)
             self.canvas_p2 = np.zeros((h, w - half_w, 3), dtype=np.uint8)
 
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        result = self.detector.detect(mp_image)
+        self.frame_counter += 1
+        if self.frame_counter % 2 == 0 or self.last_mp_result is None:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            result = self.detector.detect(mp_image)
+            self.last_mp_result = result
+        else:
+            result = self.last_mp_result
 
         p1_seen = False
         p2_seen = False
@@ -148,26 +155,10 @@ class DuelCanvas:
             self.fist_frames_p2 = 0
 
         composite = frame.copy()
-
-        canvas_p1_gray = cv2.cvtColor(self.canvas_p1, cv2.COLOR_BGR2GRAY)
-        _, mask_p1 = cv2.threshold(canvas_p1_gray, 10, 255, cv2.THRESH_BINARY)
-        colored_p1 = np.zeros_like(self.canvas_p1)
-        colored_p1[mask_p1 > 0] = PEN_COLOR_P1
-        left_part = composite[:, :half_w]
-        mask_inv = cv2.bitwise_not(mask_p1)
-        left_bg = cv2.bitwise_and(left_part, left_part, mask=mask_inv)
-        left_fg = cv2.bitwise_and(colored_p1, colored_p1, mask=mask_p1)
-        composite[:, :half_w] = cv2.add(left_bg, left_fg)
-
-        canvas_p2_gray = cv2.cvtColor(self.canvas_p2, cv2.COLOR_BGR2GRAY)
-        _, mask_p2 = cv2.threshold(canvas_p2_gray, 10, 255, cv2.THRESH_BINARY)
-        colored_p2 = np.zeros_like(self.canvas_p2)
-        colored_p2[mask_p2 > 0] = PEN_COLOR_P2
-        right_part = composite[:, half_w:]
-        mask_inv2 = cv2.bitwise_not(mask_p2)
-        right_bg = cv2.bitwise_and(right_part, right_part, mask=mask_inv2)
-        right_fg = cv2.bitwise_and(colored_p2, colored_p2, mask=mask_p2)
-        composite[:, half_w:] = cv2.add(right_bg, right_fg)
+        canvas_p1_mask = self.canvas_p1[:, :, 0] > 10
+        composite[:, :half_w][canvas_p1_mask] = PEN_COLOR_P1
+        canvas_p2_mask = self.canvas_p2[:, :, 0] > 10
+        composite[:, half_w:][canvas_p2_mask] = PEN_COLOR_P2
 
         cv2.line(composite, (half_w, 0), (half_w, h), (220, 220, 220), 2)
 

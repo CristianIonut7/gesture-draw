@@ -1,6 +1,7 @@
 import time
 import cv2
 import numpy as np
+import threading
 
 from game import SoloGame, DuelGame, check_word_match
 from classifier import DrawingClassifier
@@ -8,7 +9,6 @@ from ui import make_paper_background, COLOR_INK, COLOR_INK_LIGHT, DISPLAY_W, DIS
 
 
 def _show_simple_loading(window_name, message):
-    """Static paper-bg loading screen shown immediately."""
     bg = make_paper_background(DISPLAY_W, DISPLAY_H)
     title = "GestureWar"
     title_size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 2.2, 2)[0]
@@ -41,6 +41,7 @@ def _point_in_rect(px, py, rect):
     x, y, w, h = rect
     return x <= px <= x + w and y <= py <= y + h
 
+
 _mode_mouse = {"x": -1, "y": -1, "clicked": False}
 
 
@@ -52,7 +53,6 @@ def _mode_mouse_cb(event, x, y, flags, param):
 
 
 def _show_free_draw_help(canvas, window_name):
-    """Help overlay - dismissed on any key or click."""
     _mode_mouse["clicked"] = False
     while True:
         state = canvas.update()
@@ -122,7 +122,8 @@ def run_free_draw(canvas, window_name="GestureWar"):
                     (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1, cv2.LINE_AA)
 
         info_rect = _draw_info_button(display,
-                                       hovered=_point_in_rect(_mode_mouse["x"], _mode_mouse["y"], (display.shape[1] - 55, display.shape[0] - 55, 40, 40)))
+                                       hovered=_point_in_rect(_mode_mouse["x"], _mode_mouse["y"],
+                                                              (display.shape[1] - 55, display.shape[0] - 55, 40, 40)))
 
         cv2.imshow(window_name, display)
         last_display = display
@@ -652,6 +653,10 @@ def run_duel(shared_canvas, window_name="GestureWar"):
             break
 
     classifier = DrawingClassifier()
+
+    dummy = np.zeros((480, 320, 3), dtype=np.uint8)
+    classifier.predict(dummy, top_k=1)
+
     last_display = None
 
     try:
@@ -663,6 +668,21 @@ def run_duel(shared_canvas, window_name="GestureWar"):
             return _show_simple_loading(window_name, "returning to menu...")
 
         game = DuelGame(num_rounds=5)
+
+        ai_state = {
+            "result_p1": None,
+            "result_p2": None,
+            "in_flight": False,
+            "lock": threading.Lock(),
+        }
+
+        def _run_ai_inference(canvas_p1, canvas_p2):
+            p1 = classifier.predict(canvas_p1, top_k=5)
+            p2 = classifier.predict(canvas_p2, top_k=5)
+            with ai_state["lock"]:
+                ai_state["result_p1"] = p1
+                ai_state["result_p2"] = p2
+                ai_state["in_flight"] = False
 
         while not game.is_finished():
             word = game.start_next_round()
@@ -715,39 +735,49 @@ def run_duel(shared_canvas, window_name="GestureWar"):
                 cv2.imshow(window_name, display)
                 last_display = display
 
-                if time.time() - last_ai_check >= ai_check_interval:
+                if time.time() - last_ai_check >= ai_check_interval and not ai_state["in_flight"]:
                     last_ai_check = time.time()
+                    ai_state["in_flight"] = True
+                    threading.Thread(
+                        target=_run_ai_inference,
+                        args=(state["raw_canvas_p1"], state["raw_canvas_p2"]),
+                        daemon=True,
+                    ).start()
 
-                    preds_p1 = classifier.predict(state["raw_canvas_p1"], top_k=5)
-                    preds_p2 = classifier.predict(state["raw_canvas_p2"], top_k=5)
+                with ai_state["lock"]:
+                    if ai_state["result_p1"] is not None:
+                        preds_p1 = ai_state["result_p1"]
+                        preds_p2 = ai_state["result_p2"]
+                        ai_state["result_p1"] = None
+                        ai_state["result_p2"] = None
 
-                    if preds_p1 and check_word_match(preds_p1, word):
-                        p1_match_streak += 1
-                    else:
-                        p1_match_streak = 0
+                        if preds_p1 and check_word_match(preds_p1, word):
+                            p1_match_streak += 1
+                        else:
+                            p1_match_streak = 0
 
-                    if preds_p2 and check_word_match(preds_p2, word):
-                        p2_match_streak += 1
-                    else:
-                        p2_match_streak = 0
+                        if preds_p2 and check_word_match(preds_p2, word):
+                            p2_match_streak += 1
+                        else:
+                            p2_match_streak = 0
 
-                    if p1_match_streak >= REQUIRED_STREAK and p2_match_streak >= REQUIRED_STREAK:
-                        c1 = next((c for l, c in preds_p1 if l == word), 0)
-                        c2 = next((c for l, c in preds_p2 if l == word), 0)
-                        round_winner = "p1" if c1 >= c2 else "p2"
-                    elif p1_match_streak >= REQUIRED_STREAK:
-                        round_winner = "p1"
-                    elif p2_match_streak >= REQUIRED_STREAK:
-                        round_winner = "p2"
+                        if p1_match_streak >= REQUIRED_STREAK and p2_match_streak >= REQUIRED_STREAK:
+                            c1 = next((c for l, c in preds_p1 if l == word), 0)
+                            c2 = next((c for l, c in preds_p2 if l == word), 0)
+                            round_winner = "p1" if c1 >= c2 else "p2"
+                        elif p1_match_streak >= REQUIRED_STREAK:
+                            round_winner = "p1"
+                        elif p2_match_streak >= REQUIRED_STREAK:
+                            round_winner = "p2"
 
-                    if round_winner:
-                        game.register_winner(round_winner)
-                        last_display = _duel_show_round_result(
-                            duel_canvas, window_name, round_winner, word,
-                            game.wins_p1, game.wins_p2)
-                        break
+                        if round_winner:
+                            game.register_winner(round_winner)
+                            last_display = _duel_show_round_result(
+                                duel_canvas, window_name, round_winner, word,
+                                game.wins_p1, game.wins_p2)
+                            break
 
-                key = cv2.waitKey(1) & 0xFF
+                key = cv2.waitKey(5) & 0xFF
                 if key == ord('s'):
                     game.register_skip()
                     last_display = _duel_show_round_result(

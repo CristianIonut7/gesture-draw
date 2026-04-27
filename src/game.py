@@ -21,18 +21,12 @@ def get_penalty_for_attempt(attempt_number):
 
 
 def check_word_match(predictions_top5, target_word):
-    """
-    Lax top-K matching:
-    - Top-1 with conf > 0.50 -> match
-    - Top-2 with conf > 0.25 -> match
-    - Top-3 with conf > 0.15 -> match
-    Returns True if any of these conditions hold.
-    """
     thresholds = [0.50, 0.25, 0.15]
     for i, (label, conf) in enumerate(predictions_top5[:3]):
         if label == target_word and conf >= thresholds[i]:
             return True
     return False
+
 
 class SoloGame:
     def __init__(self, num_rounds=5):
@@ -82,7 +76,6 @@ class SoloGame:
 
 
 class DuelGame:
-
     def __init__(self, num_rounds=5):
         self.all_words = load_words()
         self.num_rounds = num_rounds

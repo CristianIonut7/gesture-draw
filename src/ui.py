@@ -5,6 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import cv2
 import numpy as np
 
+
 DISPLAY_W, DISPLAY_H = 1280, 720
 HOVER_SPEED = 0.08
 
@@ -35,7 +36,6 @@ def make_paper_background(w, h):
     vignette = 1 - 0.15 * (dist / max_dist)
     bg = (bg * vignette[..., np.newaxis]).astype(np.uint8)
     return bg
-
 
 
 def fade_out(window_name, current_frame, frames=12):
@@ -113,12 +113,16 @@ def _mouse_callback(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         _mouse_state["clicked"] = True
 
-_cached_paper_bg = None 
+
+_cached_paper_bg = None
+
+
 def render_menu_frame(hover_state):
     global _cached_paper_bg
     if _cached_paper_bg is None:
         _cached_paper_bg = make_paper_background(DISPLAY_W, DISPLAY_H)
     display = _cached_paper_bg.copy()
+
     title = "GestureWar"
     title_size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 2.2, 2)[0]
     cv2.putText(display, title, ((DISPLAY_W - title_size[0]) // 2, 110),

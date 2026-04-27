@@ -9,6 +9,7 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 
+
 MODEL_PATH = "models/hand_landmarker.task"
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 
@@ -97,7 +98,7 @@ class GestureCanvas:
         self.allow_clear = True
         self.set_modes(allow_color_change, allow_clear)
         self.just_cleared = False
-        self.open_hand_triggered = False  # set true on the frame open hand confirms
+        self.open_hand_triggered = False
 
     def set_modes(self, allow_color_change=True, allow_clear=True):
         self.allow_color_change = allow_color_change
@@ -161,7 +162,6 @@ class GestureCanvas:
                     self.just_cleared = True
 
             elif is_open_hand(landmarks):
-                # Open hand detected - either change color OR signal to game mode
                 open_hand_active = True
                 self.open_frames += 1
                 self.fist_frames = 0
@@ -177,7 +177,6 @@ class GestureCanvas:
                         self.open_frames = 0
                         self.open_hand_triggered = True
                 else:
-                    # Mode handles the visual feedback for AI call
                     gesture_label = "OPEN HAND"
                     if self.open_frames >= OPEN_THRESHOLD:
                         self.open_hand_triggered = True

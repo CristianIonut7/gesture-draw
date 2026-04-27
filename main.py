@@ -1,6 +1,5 @@
 import sys
 import os
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 import cv2
@@ -61,6 +60,7 @@ def main():
                     canvas = get_canvas()
                     last_mode_frame = run_solo_challenge(canvas, window_name=WINDOW_NAME)
                 elif choice == "duel":
+                    canvas = get_canvas()
                     last_mode_frame = run_duel(canvas, window_name=WINDOW_NAME)
 
                 if last_mode_frame is not None:
