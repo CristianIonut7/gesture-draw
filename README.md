@@ -124,7 +124,7 @@ python train_model.py
 See the [**Training Guide**](docs/TRAINING.md) for details and tunable parameters.
 
 **Option B — download the pre-trained model**:
-> Place `quickdraw_model.h5` from releases in the `models/` folder.
+> Download [quickdraw_model.h5](https://github.com/CristianIonut7/gesture-draw/releases/latest/download/quickdraw_model.h5)  and place it in the `models/` folder.
 
 Then launch the app:
 ```bash
