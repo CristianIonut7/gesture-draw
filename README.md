@@ -64,6 +64,17 @@ A real-time hand gesture drawing application powered by MediaPipe hand tracking 
 
 ---
 
+## 📚 Documentation
+
+| Guide | What you'll find |
+|---|---|
+| 📦 [**Install Guide**](docs/INSTALL.md) | Step-by-step installation, dependencies, troubleshooting common issues |
+| 🖐️ [**Gesture Cheat Sheet**](docs/GESTURES.md) | All four gestures explained, tips for reliable detection, mode-by-mode actions |
+| 🏗️ [**Architecture**](docs/ARCHITECTURE.md) | Module-by-module breakdown, data flow diagrams, performance notes |
+| 🧠 [**Training Guide**](docs/TRAINING.md) | How the CNN was trained, tunable parameters, adding new categories |
+
+---
+
 ## Tech Stack
 
 | Component | Technology |
@@ -100,6 +111,8 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
+For detailed instructions and troubleshooting, see the [**Install Guide**](docs/INSTALL.md).
+
 ### Running
 
 You need a trained CNN model in `models/quickdraw_model.h5`. Either:
@@ -108,9 +121,10 @@ You need a trained CNN model in `models/quickdraw_model.h5`. Either:
 ```bash
 python train_model.py
 ```
+See the [**Training Guide**](docs/TRAINING.md) for details and tunable parameters.
 
-**Option B - download the pre-trained model:
-> Place `quickdraw_model.h5` from realeses in the `models/` folder.
+**Option B — download the pre-trained model**:
+> Place `quickdraw_model.h5` from releases in the `models/` folder.
 
 Then launch the app:
 ```bash
@@ -131,6 +145,8 @@ The MediaPipe hand-tracking model (~25 MB) is downloaded automatically on first 
 | 🤏 Pinch (thumb + index) | Pen up (stop drawing) |
 | 🖐️ Open hand (~0.5s) | Change color *(Free Draw)* / Call AI *(Solo)* |
 | ✊ Fist (~0.5s) | Clear canvas |
+
+For tips on reliable gesture detection and detailed troubleshooting, see the [**Gesture Cheat Sheet**](docs/GESTURES.md).
 
 ### Solo Challenge - Scoring
 
@@ -161,7 +177,7 @@ Camera frame  →  MediaPipe (21 landmarks)  →  Gesture detection
                               Top-3 predictions with confidence
 ```
 
-The application is split into independent modules with clean separation between game logic, camera/input, and UI rendering. See the [project documentation](docs/) for architecture diagrams and implementation details.
+The application uses clean separation between game logic, camera/input, and UI rendering. For a full architectural overview, module-by-module breakdown, and performance analysis, see [**Architecture**](docs/ARCHITECTURE.md).
 
 ### CNN Architecture
 
@@ -181,6 +197,11 @@ gesture-draw/
 │   ├── quickdraw_model.h5   # Trained CNN (created by train_model.py)
 │   ├── labels.json          # Category names
 │   └── hand_landmarker.task # MediaPipe model (auto-downloaded)
+├── docs/
+│   ├── INSTALL.md           # Detailed install + troubleshooting
+│   ├── GESTURES.md          # Gesture cheat sheet
+│   ├── ARCHITECTURE.md      # Technical architecture
+│   └── TRAINING.md          # Training guide
 └── src/
     ├── canvas.py            # Single-hand canvas + MediaPipe wrapper
     ├── duel_canvas.py       # Two-hand split-screen canvas
@@ -213,12 +234,12 @@ The 1v1 mode is computationally heavy (two hands tracked + two CNN inferences). 
 
 ## Acknowledgments
 
-- **[Quick, Draw!](https://quickdraw.withgoogle.com/data)** by Google Creative Lab — the dataset that made the classifier possible
-- **[MediaPipe](https://developers.google.com/mediapipe)** by Google Research — for the excellent hand-tracking model
+- **[Quick, Draw!](https://quickdraw.withgoogle.com/data)** by Google Creative Lab - the dataset that made the classifier possible
+- **[MediaPipe](https://developers.google.com/mediapipe)** by Google Research - for the excellent hand-tracking model
 - **[OpenCV](https://opencv.org/)** — for everything image-related
 
 ---
 
 ## License
 
-Released under the [MIT License](LICENSE) — feel free to fork, modify, and use in your own projects.
+Released under the [MIT License](LICENSE) - feel free to fork, modify, and use in your own projects.
